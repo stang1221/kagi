@@ -1,4 +1,4 @@
-{% extends "kagi/base.html" %}
+{% extends 'frontend/base.html' %}
 {% load i18n %}
 
 {% block content %}
@@ -8,7 +8,8 @@
 <table>
 {{ form.as_p }}
 </table>
-<input type="submit" value="{% trans 'Login' %}" />
+<button type="submit">{% trans 'Login' %}</button>
+<br><br><a href="{% url 'password_reset' %}">Forgot Password?</a>.
 </form>
 
 {% endblock %}

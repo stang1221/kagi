@@ -1,4 +1,4 @@
-{% extends "kagi/base.html" %}
+{% extends 'frontend/base.html' %}
 {% load i18n %}
 
 {% block content %}
@@ -14,9 +14,11 @@
   {% endfor %}
 </ul>
 
-<form method="POST">
-  {% csrf_token %}
-  <input type="submit" value="{% trans 'Create some backup codes' %}">
+
+<form method="POST" >
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">{% trans 'Create some backup codes' %}</button>
 </form>
+
 
 {% endblock %}

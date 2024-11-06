@@ -1,4 +1,4 @@
-{% extends "kagi/base.html" %}
+{% extends 'frontend/base.html' %}
 {% load i18n %}
 
 {% block content %}
@@ -19,7 +19,7 @@
       {% trans 'Never' as never %}
       <td>{{ device.last_used_at|default:never}}</td>
       <td>
-        <form method="post">{% csrf_token %}
+        <form method="post" class="delete-form" >{% csrf_token %}
           <input name="device_id" type="hidden" value="{{ device.pk }}">
           <input type="submit" name="delete" value="X">
         </form>
@@ -28,5 +28,5 @@
     {% endfor %}
   </tbody>
 </table>
-<a href="{% url 'kagi:add-totp' %}">{% trans 'Add another TOTP (Authenticator) Device' %}</a>
+<br><a href="{% url 'kagi:add-totp' %}">{% trans 'Add another TOTP (Authenticator) Device' %}</a>
 {% endblock %}

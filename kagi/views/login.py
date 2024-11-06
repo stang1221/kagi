@@ -8,14 +8,37 @@ from django.shortcuts import resolve_url
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.generic import TemplateView
-
 from ..forms import BackupCodeForm, SecondFactorForm, TOTPForm
 from .mixin import OriginMixin
+from django.core.cache import cache
+from django.shortcuts import render
+from django.contrib.auth import authenticate
 
 
 class KagiLoginView(LoginView):
     form_class = AuthenticationForm
     template_name = "kagi/login.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        username = request.POST.get('username')
+        cache_key = f"rate_limit_user_{username}"
+        attempts = cache.get(cache_key, 0)
+
+        if request.method == "POST":
+            if attempts >= 5:
+                return render(request, "kagi/rate_limit.html", {"message": "Too many login attempts. You shall not pass." })
+            cache.set(cache_key, attempts + 1, timeout=60)
+
+        response = super().dispatch(request, *args, **kwargs)
+
+        # Reset attempt count on successful login
+        if request.method == "POST" and response.status_code == 302:
+            # Check if login was actually successful by verifying the user authentication
+            user = authenticate(username=username, password=request.POST.get('password'))
+            if user is not None:
+                cache.delete(cache_key)
+
+        return response
 
     @property
     def is_admin(self):
@@ -36,7 +59,7 @@ class KagiLoginView(LoginView):
             verify_url = reverse("kagi:verify-second-factor")
             redirect_to = self.request.POST.get(
                 auth.REDIRECT_FIELD_NAME,
-                self.request.GET.get(auth.REDIRECT_FIELD_NAME, ""),
+                self.request.GET.get(auth.REDIRECT_FIELD_NAME, reverse("dashboard")),
             )
             params = {}
             if url_has_allowed_host_and_scheme(
@@ -45,6 +68,9 @@ class KagiLoginView(LoginView):
                 require_https=True,
             ):
                 params[auth.REDIRECT_FIELD_NAME] = redirect_to
+            else:
+                params = {auth.REDIRECT_FIELD_NAME: reverse("dashboard")}  # Fallback to dashboard
+
             if self.is_admin:
                 params["admin"] = 1
             if params:
@@ -139,6 +165,9 @@ class VerifySecondFactorView(OriginMixin, TemplateView):
         del self.request.session["kagi_pre_verify_user_backend"]
 
         auth.login(self.request, self.user)
+
+        # Set the MFA verified flag in the session
+        self.request.session['mfa_verified'] = True
 
         redirect_to = self.request.POST.get(
             auth.REDIRECT_FIELD_NAME, self.request.GET.get(auth.REDIRECT_FIELD_NAME, "")
